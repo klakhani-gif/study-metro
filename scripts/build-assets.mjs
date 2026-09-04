@@ -9,8 +9,10 @@ const auth = readAuthEnv();
 for (const file of readdirSync('dist')) {
   if (/\.js(?:\.map)?$/.test(file) && !existsSync(`src/${file.replace(/\.js(?:\.map)?$/, '.ts')}`)) unlinkSync(`dist/${file}`);
 }
+// Cached Cloudflare build output may still contain the retired Pages redirect file.
+if (existsSync('dist/_redirects')) unlinkSync('dist/_redirects');
 
-for (const file of ['index.html', 'styles.css', 'favicon.svg', 'study-metro-logo.png', '404.html', '_redirects']) {
+for (const file of ['index.html', 'styles.css', 'favicon.svg', 'study-metro-logo.png', '404.html']) {
   copyFileSync(`public/${file}`, `dist/${file}`);
 }
 

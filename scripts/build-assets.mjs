@@ -12,7 +12,7 @@ for (const file of readdirSync('dist')) {
 // Cached Cloudflare build output may still contain the retired Pages redirect file.
 if (existsSync('dist/_redirects')) unlinkSync('dist/_redirects');
 
-for (const file of ['index.html', 'styles.css', 'favicon.svg', 'study-metro-logo.png', '404.html']) {
+for (const file of ['index.html', 'styles.css', 'favicon.svg', 'study-metro-logo.png', '404.html', '.assetsignore']) {
   copyFileSync(`public/${file}`, `dist/${file}`);
 }
 

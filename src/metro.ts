@@ -1,6 +1,7 @@
 import { AppState, MetroLine, Station } from "./model.js";
 import { MAP_WIDTH, mapHeight } from "./layout.js";
 import { examCountdown, examProgress } from "./exams.js";
+import { isCompletedStation, isMaintenanceDue } from "./revision.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -106,12 +107,13 @@ export function renderMetroMap(
     const terminal = station.id === line.stationIds[0] || (station.id === line.stationIds[line.stationIds.length - 1] && !state.exams.some((exam) => exam.lineId === line.id));
     const interchange = state.lines.filter((item) => item.stationIds.includes(station.id)).length > 1;
     const group = el("g", {
-      class: `${stationClass(station)}${!state.selectedExamId && state.selectedStationId === station.id ? " is-selected" : ""}`,
+      class: `${stationClass(station)}${isMaintenanceDue(station) ? " is-maintenance-due" : ""}${!state.selectedExamId && state.selectedStationId === station.id ? " is-selected" : ""}`,
       tabindex: "0",
       role: "button",
       "data-station-id": station.id,
+      "data-terminal": String(terminal),
       "aria-pressed": String(!state.selectedExamId && state.selectedStationId === station.id),
-      "aria-label": `${station.name}, ${line.name}, ${station.status.replaceAll("_", " ")}${terminal ? ", terminal" : ""}`
+      "aria-label": `${station.name}, ${line.name}, ${isMaintenanceDue(station) ? "Maintenance due" : station.status.replaceAll("_", " ")}${terminal ? ", terminal" : ""}`
     });
     group.style.setProperty("--line-color", displayLineColor(line.color));
     const hit = el("rect", { x: String(station.x - 26), y: String(station.y - 25), width: "52", height: "52", class: "station-hit" });
@@ -136,11 +138,12 @@ export function renderMetroMap(
     const title = el("title");
     title.textContent = station.name;
     group.append(title, hit, selection, circle, leader, label);
+    group.append(el("circle", { cx: String(station.x), cy: String(station.y), r: interchange ? "16" : "14", class: "station-maintenance-ring", "aria-hidden": "true" }));
     // Shared stations, if present in existing data, use the interchange symbol.
     if (interchange) {
       group.insertBefore(el("circle", { cx: String(station.x), cy: String(station.y), r: "12", class: "station-interchange", "aria-hidden": "true" }), circle);
     }
-    if (station.status === "completed" || station.status === "mastered") {
+    if (isCompletedStation(station)) {
       group.append(el("path", { d: `M ${station.x - 3} ${station.y} l 2 2 l 4 -4`, class: "station-check", "aria-hidden": "true" }));
     }
     if (station.status === "studying") {

@@ -8,7 +8,8 @@ const types = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascrip
 createServer(async (request, response) => {
   try {
     const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
-    const file = resolve(root, `.${pathname === '/' ? '/index.html' : pathname}`);
+    const appPath = pathname === '/' || /^\/(?:login|signup|network|departures|friends|recap|profile|settings)\/?$/.test(pathname) || /^\/u\/[^/]+\/?$/.test(pathname);
+    const file = resolve(root, `.${appPath ? '/index.html' : pathname}`);
     if (!file.startsWith(root + sep)) {
       response.writeHead(403).end('Forbidden');
       return;

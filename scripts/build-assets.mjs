@@ -1,10 +1,18 @@
 import { copyFileSync, readdirSync, existsSync, unlinkSync } from 'node:fs';
+import { build } from 'esbuild';
+import { readAuthEnv } from './auth-env.mjs';
+
+// Bundle the npm SDK for the browser; only this explicit public env allowlist is exposed.
+const auth = readAuthEnv();
 
 // Remove stale compiled modules when a prototype-only source module is removed.
 for (const file of readdirSync('dist')) {
   if (/\.js(?:\.map)?$/.test(file) && !existsSync(`src/${file.replace(/\.js(?:\.map)?$/, '.ts')}`)) unlinkSync(`dist/${file}`);
 }
 
-for (const file of ['index.html', 'styles.css', 'favicon.svg', '404.html']) {
+for (const file of ['index.html', 'styles.css', 'favicon.svg', 'study-metro-logo.png', '404.html', '_redirects']) {
   copyFileSync(`public/${file}`, `dist/${file}`);
 }
+
+await build({ entryPoints: ['src/app.ts'], outfile: 'dist/app.js', bundle: true, format: 'esm', platform: 'browser', target: 'es2022', sourcemap: true,
+  define: { __SUPABASE_URL__: JSON.stringify(auth.url), __SUPABASE_PUBLISHABLE_KEY__: JSON.stringify(auth.key) } });

@@ -20,13 +20,13 @@ export function loadState(): AppState {
       storageNotice = "Saved data could not be read. The original will be kept in a recovery copy before a new network is saved.";
       return createEmptyState();
     }
-    if (isRecord(parsed) && parsed.schemaVersion > 3) {
+    if (isRecord(parsed) && parsed.schemaVersion > 5) {
       futureVersion = true;
       storageNotice = "This network was saved by a newer version. Reload the latest Study Metro before editing; saving is disabled to protect your data.";
     }
     const state = normalizeState(parsed);
     if (JSON.stringify(state) !== JSON.stringify(parsed)) recoveryRaw = raw;
-    if (!futureVersion && (!isRecord(parsed) || (Array.isArray(parsed.stations) && state.stations.length !== parsed.stations.length) || (parsed.activeJourney && !state.activeJourney))) storageNotice = "Some saved data needed repair. Valid stations and history were recovered; the original is kept before the next save.";
+    if (!futureVersion && (!isRecord(parsed) || (Array.isArray(parsed.stations) && state.stations.length !== parsed.stations.length) || (parsed.departures != null && (!Array.isArray(parsed.departures) || state.departures.length !== parsed.departures.length)) || (parsed.activeJourney && !state.activeJourney))) storageNotice = "Some saved data needed repair. Valid stations and history were recovered; the original is kept before the next save.";
     if (!localStorage.getItem(KEY) && !futureVersion) {
       try { saveState(state); } catch { storageNotice = "Your older network was recovered, but could not be saved. Browser storage may be full or unavailable."; }
     }

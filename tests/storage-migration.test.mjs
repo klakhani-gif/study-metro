@@ -22,11 +22,11 @@ test('v2 networks without exams migrate without changing active sessions or prog
   saved.history = [{ id: 'journey', stationId: 'thorax', lineId: 'anatomy', startedAt: 1, completedAt: 2, focusedSeconds: 1500 }];
   db.setItem('study-metro:v2', JSON.stringify(saved));
   const state = loadState();
-  assert.equal(state.schemaVersion, 3);
+  assert.equal(state.schemaVersion, 5);
   assert.deepEqual(state.exams, []);
   assert.equal(state.selectedExamId, null);
-  assert.deepEqual(state.activeJourney, saved.activeJourney);
-  assert.deepEqual(state.history, saved.history);
+  assert.deepEqual(state.activeJourney, { ...saved.activeJourney, kind: 'study' });
+  assert.deepEqual(state.history, saved.history.map(journey => ({ ...journey, kind: 'study' })));
   assert.deepEqual(state.lines, saved.lines);
   assert.deepEqual(state.stations.map(s => [s.id, s.status, s.estimatedMinutes]), saved.stations.map(s => [s.id, s.status, s.estimatedMinutes]));
   assert.equal(state.selectedStationId, saved.selectedStationId);
@@ -40,10 +40,10 @@ test('legacy v1 still migrates through the existing storage key', t => {
   saved.schemaVersion = 1;
   db.setItem('study-metro:v1', JSON.stringify(saved));
   const migrated = loadState();
-  assert.equal(migrated.schemaVersion, 3);
+  assert.equal(migrated.schemaVersion, 5);
   assert.deepEqual(migrated.exams, []);
   assert.ok(migrated.profile);
-  assert.equal(JSON.parse(db.getItem('study-metro:v2')).schemaVersion, 3);
+  assert.equal(JSON.parse(db.getItem('study-metro:v2')).schemaVersion, 5);
 });
 
 test('exam and selection survive save/reload; removing only the exam preserves study data', t => {
@@ -101,4 +101,44 @@ test('failed recovery backup leaves the original saved network intact', t => {
   db.setItem = () => { throw new Error('QuotaExceeded'); };
   assert.throws(() => saveState(state));
   assert.equal(db.getItem('study-metro:v2'), '{broken');
+});
+
+test('schema 3 revision migration preserves original raw data and exam values on save', t => {
+  const db = storage(t);
+  const saved = createDemoState();
+  saved.exams = [{id:'final',lineId:'anatomy',name:'Final',examDate:'2026-09-21',targetCompletionDate:null}];
+  const raw = JSON.stringify(saved);
+  db.setItem('study-metro:v2', raw);
+  const migrated = loadState();
+  assert.equal(migrated.schemaVersion, 5);
+  assert.equal(db.getItem('study-metro:v2'), raw);
+  saveState(migrated);
+  assert.equal(db.getItem('study-metro:recovery'), raw);
+  assert.deepEqual(loadState().exams, saved.exams);
+  assert.deepEqual(loadState().stations, migrated.stations);
+});
+
+
+test('schema 4 timetable migration backs up the original and preserves scheduled links on reload', t => {
+  const db = storage(t);
+  const old = loadState();
+  Object.assign(old, createDemoState());
+  old.schemaVersion = 4; delete old.departures;
+  const raw = JSON.stringify(old);
+  db.setItem('study-metro:v2', raw);
+  const migrated = loadState();
+  assert.deepEqual(migrated.departures, []);
+  assert.equal(db.getItem('study-metro:v2'), raw);
+  migrated.departures = [{id:'dep',lineId:'anatomy',stationId:'thorax',scheduledAt:5000000,durationMinutes:25,note:'Review',status:'scheduled',linkedJourneyId:'linked',createdAt:1}];
+  migrated.activeJourney = {departureId:'dep',journeyId:'linked',kind:'revision',stationId:'thorax',lineId:'anatomy',durationMinutes:25,previousStationStatus:'completed',timer:{phase:'paused',startedAt:100,targetEndAt:1500100,pausedAt:200,totalPausedMs:0,durationMs:1500000}};
+  saveState(migrated);
+  assert.equal(db.getItem('study-metro:recovery'), raw);
+  const restored = loadState();
+  assert.deepEqual(restored.departures, migrated.departures);
+  assert.deepEqual(restored.activeJourney, migrated.activeJourney);
+  assert.deepEqual(restored.exams, migrated.exams);
+  assert.deepEqual(restored.stations, migrated.stations);
+  restored.departures[0].status = 'cancelled'; restored.activeJourney = null;
+  saveState(restored);
+  assert.equal(loadState().departures[0].status, 'cancelled');
 });

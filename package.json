@@ -1,0 +1,15 @@
+{
+  "name": "study-metro",
+  "version": "0.2.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/build-assets.mjs",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "serve": "node scripts/serve.mjs",
+    "test": "npm run build && node --test tests/*.test.mjs"
+  },
+  "type": "module",
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}

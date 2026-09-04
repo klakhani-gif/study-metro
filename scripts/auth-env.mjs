@@ -1,5 +1,18 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { parseEnv } from 'node:util';
+
+function parseEnvFile(contents) {
+  const values = {};
+  for (const rawLine of contents.replace(/^\uFEFF/, '').split(/\r?\n/)) {
+    const match = rawLine.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (!match) continue;
+    let value = match[2];
+    const quote = value[0];
+    if ((quote === '"' || quote === "'") && value.endsWith(quote)) value = value.slice(1, -1);
+    else value = value.replace(/\s+#.*$/, '');
+    values[match[1]] = value;
+  }
+  return values;
+}
 
 export function validatePublicAuthConfig(url, key) {
   if (!url && !key) return { url: '', key: '' };
@@ -15,6 +28,6 @@ export function validatePublicAuthConfig(url, key) {
 }
 
 export function readAuthEnv(environment = process.env, file = '.env.local') {
-  const local = existsSync(file) ? parseEnv(readFileSync(file, 'utf8')) : {};
+  const local = existsSync(file) ? parseEnvFile(readFileSync(file, 'utf8')) : {};
   return validatePublicAuthConfig((environment.VITE_SUPABASE_URL ?? local.VITE_SUPABASE_URL ?? '').trim(), (environment.VITE_SUPABASE_PUBLISHABLE_KEY ?? local.VITE_SUPABASE_PUBLISHABLE_KEY ?? '').trim());
 }
